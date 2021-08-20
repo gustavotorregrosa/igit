@@ -4,9 +4,24 @@ const express         =     require('express')
   , session           =     require('express-session')
   , bodyParser        =     require('body-parser')
   , config            =     require('./configuration/config')
+  , fbconfig          =     require('./configuration/fb-config')
   , app               =     express();
 
 var GoogleStrategy = require('passport-google-oauth20').Strategy;
+let FacebookStrategy = require('passport-facebook').Strategy
+
+passport.use(new FacebookStrategy({
+  clientID: fbconfig.FACEBOOK_APP_ID,
+  clientSecret: fbconfig.FACEBOOK_APP_SECRET,
+  callbackURL: "http://localhost:3000/auth/facebook/callback"
+},
+function(accessToken, refreshToken, profile, cb) {
+  User.findOrCreate({ facebookId: profile.id }, function (err, user) {
+    return cb(err, user);
+  });
+}
+));
+
 
 passport.use(new GoogleStrategy({
     clientID: config.api_key,
@@ -17,6 +32,7 @@ passport.use(new GoogleStrategy({
     return done(null, profile);
   }
 ));
+
 
 // Passport session setup.
 passport.serializeUser(function(user, done) {
@@ -41,6 +57,16 @@ app.get('/', function(req, res){
 });
 
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile'] }));
+
+app.get('/auth/facebook', passport.authenticate('facebook'));
+
+
+app.get('/auth/facebook/callback',
+  passport.authenticate('facebook', { failureRedirect: '/login' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('/');
+  });
 
 app.get('/auth/google/callback', 
   passport.authenticate('google',  { successRedirect : '/', failureRedirect: '/login' }),
